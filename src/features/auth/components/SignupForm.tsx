@@ -9,8 +9,9 @@ import { Field, Input, invalidProps } from "@/components/ui/Field";
 import { useSignUp } from "../hooks/useAuthMutations";
 import { safeRedirect, signUpSchema, type SignUpInput } from "../schemas";
 import { AuthCard } from "./AuthCard";
+import { GoogleSignInButton } from "./GoogleSignInButton";
 
-export function SignupForm() {
+export function SignupForm({ googleEnabled = false }: { googleEnabled?: boolean }) {
   const redirectTo = safeRedirect(useSearchParams().get("redirectTo"));
   const { signUp, isSigningUp, errorMessage, afterAuth } = useSignUp();
   const form = useForm<SignUpInput>({ resolver: zodResolver(signUpSchema) });
@@ -57,6 +58,7 @@ export function SignupForm() {
           Create account
         </Button>
       </form>
+      {googleEnabled && <GoogleSignInButton redirectTo={redirectTo} />}
       <p className="text-sm text-muted">
         Already have an account?{" "}
         <Link href={`/login?redirectTo=${encodeURIComponent(redirectTo)}`} className="font-medium text-ink underline underline-offset-2">

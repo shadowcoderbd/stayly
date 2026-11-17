@@ -26,6 +26,9 @@ export default defineConfig({
       UPLOAD_DIR: "./data/test-uploads",
       TAX_RATE: "0.12",
       APP_TIMEZONE: "UTC",
+      // Fake credentials: tests only build the Google authorization URL, nothing calls Google.
+      GOOGLE_CLIENT_ID: "test-google-client-id",
+      GOOGLE_CLIENT_SECRET: "test-google-client-secret",
     },
   },
 });

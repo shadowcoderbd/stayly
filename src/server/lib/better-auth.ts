@@ -2,7 +2,7 @@ import "server-only";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins/admin";
-import { isProd, serverEnv } from "@/server/config/env";
+import { googleCredentials, isProd, serverEnv } from "@/server/config/env";
 import { db } from "@/server/db/client";
 import * as schema from "@/server/db/schema";
 
@@ -16,6 +16,9 @@ export const auth = betterAuth({
     schema: { user: schema.user, session: schema.session, account: schema.account, verification: schema.verification },
   }),
   emailAndPassword: { enabled: true, minPasswordLength: 8, autoSignIn: true },
+  // Google sign-in exists only when configured. Account linking stays at Better Auth's defaults:
+  // an existing (unverified) password account is never linked to a Google sign-in.
+  socialProviders: googleCredentials ? { google: { ...googleCredentials, prompt: "select_account" } } : {},
   session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 }, // 7 days, sliding daily
   advanced: {
     useSecureCookies: isProd && serverEnv.BETTER_AUTH_URL.startsWith("https://"),

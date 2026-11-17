@@ -204,12 +204,16 @@ A hotel is **available** for `[check_in, check_out)` when, **for every night** i
 
 - `/signup`: name, email, password (≥ 8 chars), confirm password.
 - `/login`: email, password. Honors `?redirectTo=` (must be a relative path, architecture.md §9.4).
+- **Continue with Google** on `/login` and `/signup`, shown only when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are configured (both or neither; one alone stops the app at startup). One button signs in or creates the account. Full requirements: `openspec/specs/user-auth/spec.md`.
 - Sign out from the avatar menu in the header. It clears the TanStack cache and goes to `/`.
 - **AC**
   - Signing up creates a `customer` user and signs them in.
   - Wrong credentials show "Email or password is incorrect" and don't say which one is wrong.
   - A signed-in user who visits `/login` or `/signup` is redirected away.
   - After a successful sign-in, `redirectTo` returns the user to where they were (for example, the hotel page where they clicked "Request booking").
+  - The first Google sign-in creates a customer account (name, email and picture from Google, email verified). Later Google sign-ins reach the same account. Admins land on `/admin/bookings`, others on `/`, unless `redirectTo` is set.
+  - If the Google email already belongs to an email/password account, nothing is linked and no one is signed in. `/login` shows "This email already has a Stayly account. Sign in with your password."
+  - A cancelled or failed Google sign-in returns to `/login` with "Google sign-in was cancelled or failed. Please try again." A suspended account gets "This account is suspended."
 - **[Q]** Email verification and password reset need an email transport (Mailpit locally). Do we want them in v1?
 
 ### F-02 Header and navigation

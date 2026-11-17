@@ -44,6 +44,20 @@ export function useSignUp() {
   return { signUp, isSigningUp, errorMessage: error ? getErrorMessage(error) : null, afterAuth };
 }
 
+/** Sends the browser to Google. It stays "pending" while the page navigates away, so the button keeps its spinner. */
+export function useGoogleSignIn() {
+  const { mutate, isPending, isSuccess, error } = useMutation({
+    mutationFn: authApi.signInSocial,
+    meta: { silent: true }, // the button shows the error inline
+    onSuccess: ({ url }) => window.location.assign(url),
+  });
+  return {
+    signInWithGoogle: mutate,
+    isRedirecting: isPending || isSuccess,
+    errorMessage: error ? "Couldn't start Google sign-in. Please try again." : null,
+  };
+}
+
 export function useSignOut() {
   const queryClient = useQueryClient();
   const router = useRouter();

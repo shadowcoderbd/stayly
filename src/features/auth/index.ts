@@ -7,5 +7,5 @@ export { CustomerHeader, AdminHeader } from "./components/Headers";
 export { useMe } from "./hooks/useMe";
 export { useSignOut } from "./hooks/useAuthMutations";
 export { authKeys, authQueries } from "./queries";
-export { safeRedirect } from "./schemas";
+export { googleErrorMessage, landingPath, safeRedirect } from "./schemas";
 export type { Session, SessionUser, Role } from "./schemas";

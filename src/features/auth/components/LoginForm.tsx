@@ -7,28 +7,32 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, invalidProps } from "@/components/ui/Field";
 import { useSignIn } from "../hooks/useAuthMutations";
-import { safeRedirect, signInSchema, type SignInInput } from "../schemas";
+import { googleErrorMessage, landingPath, safeRedirect, signInSchema, type SignInInput } from "../schemas";
 import { AuthCard } from "./AuthCard";
+import { GoogleSignInButton } from "./GoogleSignInButton";
 
-export function LoginForm() {
-  const redirectTo = safeRedirect(useSearchParams().get("redirectTo"), "");
+export function LoginForm({ googleEnabled = false }: { googleEnabled?: boolean }) {
+  const searchParams = useSearchParams();
+  const redirectTo = safeRedirect(searchParams.get("redirectTo"), "");
   const { signIn, isSigningIn, errorMessage, afterAuth } = useSignIn();
+  // A failed Google sign-in comes back here as ?error=<code>. A newer password attempt's error wins.
+  const alert = errorMessage ?? googleErrorMessage(searchParams.get("error"));
   const form = useForm<SignInInput>({ resolver: zodResolver(signInSchema) });
   const { errors } = form.formState;
 
   const onSubmit = form.handleSubmit((values) =>
     signIn(values, {
-      // Admins land in the admin area unless they were sent here from somewhere specific.
-      onSuccess: () => afterAuth((user) => redirectTo || (user?.role === "admin" ? "/admin/bookings" : "/")),
+      // Same rule as Google sign-in: redirectTo if safe, else the admin area for admins, else home.
+      onSuccess: () => afterAuth((user) => landingPath(user?.role, redirectTo)),
     }),
   );
 
   return (
     <AuthCard title="Sign in" subtitle="Welcome back. Sign in to request and manage bookings.">
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        {errorMessage && (
+        {alert && (
           <p role="alert" className="rounded-lg bg-red-bg px-3 py-2.5 text-sm text-red-fg">
-            {errorMessage}
+            {alert}
           </p>
         )}
         <Field label="Email" htmlFor="email" error={errors.email?.message}>
@@ -47,6 +51,7 @@ export function LoginForm() {
           Sign in
         </Button>
       </form>
+      {googleEnabled && <GoogleSignInButton redirectTo={redirectTo} />}
       <p className="text-sm text-muted">
         New to Stayly?{" "}
         <Link href={redirectTo ? `/signup?redirectTo=${encodeURIComponent(redirectTo)}` : "/signup"} className="font-medium text-ink underline underline-offset-2">

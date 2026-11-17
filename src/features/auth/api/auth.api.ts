@@ -14,4 +14,15 @@ export const authApi = {
     http.post("/auth/sign-up/email", { name, email, password }, auth).then((r) => r.data),
 
   signOut: () => http.post("/auth/sign-out", {}, auth).then((r) => r.data),
+
+  /** Starts Google sign-in. Returns Google's consent URL; the browser must navigate there. */
+  signInSocial: ({ callbackURL, errorCallbackURL }: { callbackURL: string; errorCallbackURL: string }) =>
+    http
+      .post<{ url: string; redirect: boolean }>(
+        "/auth/sign-in/social",
+        // New users land on the same page as returning ones; the landing page picks the destination by role.
+        { provider: "google", callbackURL, errorCallbackURL, newUserCallbackURL: callbackURL },
+        auth,
+      )
+      .then((r) => r.data),
 };

@@ -712,7 +712,7 @@ import "server-only";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins/admin";
-import { isProd, serverEnv } from "@/server/config/env";
+import { googleCredentials, isProd, serverEnv } from "@/server/config/env";
 import { db } from "@/server/db/client";
 import * as schema from "@/server/db/schema";
 
@@ -726,6 +726,9 @@ export const auth = betterAuth({
     schema: { user: schema.user, session: schema.session, account: schema.account, verification: schema.verification },
   }),
   emailAndPassword: { enabled: true, minPasswordLength: 8, autoSignIn: true },
+  // Google sign-in exists only when configured. Account linking stays at Better Auth's defaults:
+  // an existing (unverified) password account is never linked to a Google sign-in.
+  socialProviders: googleCredentials ? { google: { ...googleCredentials, prompt: "select_account" } } : {},
   session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 }, // 7 days, sliding daily
   advanced: {
     useSecureCookies: isProd && serverEnv.BETTER_AUTH_URL.startsWith("https://"),
@@ -745,6 +748,22 @@ import { auth } from "@/server/lib/better-auth";
 
 export const { GET, POST } = toNextJsHandler(auth);
 ```
+
+#### Google sign-in ("Continue with Google")
+
+- **Enabled by config.** `server/config/env.ts` reads optional `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. With both set, `googleCredentials` is non-null and the provider is registered. With neither, the provider doesn't exist (`POST /api/auth/sign-in/social` → 404 `PROVIDER_NOT_FOUND`) and the button isn't rendered. With only one set, env parsing fails and the app refuses to start. The login and signup pages call `connection()` and pass `googleEnabled={googleAuthEnabled}`, so the flag is read at request time and never baked into a prerender. That matters because the Docker image is built with placeholder env.
+- **Flow.** Clicking the button runs `authApi.signInSocial()`, which posts to `/api/auth/sign-in/social` and gets `{ url }` back. The browser then goes to Google. Google returns to `/api/auth/callback/google`, where Better Auth creates the user (role `user`, emailVerified from Google) or signs them in, and sets the cookie. It then redirects to `callbackURL` = `/auth/continue?redirectTo=…`.
+- **Landing.** `app/(public)/auth/continue/page.tsx` reads the session and redirects with `landingPath(role, redirectTo)` from `features/auth`. That is the same rule `LoginForm` uses after a password sign-in: a safe `redirectTo`, else `/admin/bookings` for admins, else `/`.
+- **Errors.** `errorCallbackURL` is `/login`, so failures come back as `/login?error=<code>`. `googleErrorMessage(code)` maps them:
+
+  | Code | Message |
+  |---|---|
+  | `account_not_linked` | "This email already has a Stayly account. Sign in with your password." |
+  | `BANNED_USER` | "This account is suspended." |
+  | anything else (e.g. cancelled at Google) | "Google sign-in was cancelled or failed. Please try again." |
+
+- **No account linking.** Local emails are never verified, so Better Auth's default `requireLocalEmailVerified` refuses to link a Google sign-in to an existing password account. That prevents account pre-hijacking. Don't turn the option off: it is deprecated, and the check becomes unconditional in the next Better Auth minor.
+- **Setup.** Create a Google OAuth client and register `<BETTER_AUTH_URL>/api/auth/callback/google` as the redirect URI (`:3000` for `pnpm dev`, `:3100` for Docker). See `.env.example`.
 
 ### 9.2 Session helpers: `server/lib/auth.ts`
 
@@ -821,7 +840,7 @@ export const config = { matcher: ["/((?!api|_next/static|_next/image|favicon.ico
 
 ### 9.4 Client side
 
-- `features/auth/api/auth.api.ts` wraps the Better Auth endpoints (`/api/auth/sign-in/email`, `/sign-up/email`, `/sign-out`, `/get-session`) with the shared axios instance. Better Auth is outside `/api/v1`, so it overrides the base URL per request:
+- `features/auth/api/auth.api.ts` wraps the Better Auth endpoints (`/api/auth/sign-in/email`, `/sign-up/email`, `/sign-in/social`, `/sign-out`, `/get-session`) with the shared axios instance. Better Auth is outside `/api/v1`, so it overrides the base URL per request:
 
   ```ts
   // Better Auth is mounted outside the versioned API, at /api/auth.
@@ -834,7 +853,7 @@ export const config = { matcher: ["/((?!api|_next/static|_next/image|favicon.ico
   };
   ```
 
-  Hooks (`useSignIn`, `useSignUp`, `useSignOut`) are TanStack mutations over it.
+  Hooks (`useSignIn`, `useSignUp`, `useGoogleSignIn`, `useSignOut`) are TanStack mutations over it. `useGoogleSignIn` navigates with `window.location.assign(url)` and stays pending while the page unloads.
 - **Current user:** `authQueries.me()` + `useMe()`. Layouts call `hydrateSession(queryClient)` from `features/auth/server.ts` (the only feature-level server file), which reads `getSession()` and puts it in the server QueryClient under `authKeys.me()` so the header has it on first paint. There is no separate auth context.
 - **After sign-in/out:** refresh `me`, then `router.replace(target)` + `router.refresh()` so Server Components re-render with the new cookie. On sign-out, `queryClient.clear()` even if the call fails.
 - Validate `redirectTo` as a same-site relative path.
