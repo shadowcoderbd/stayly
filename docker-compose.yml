@@ -1,0 +1,60 @@
+name: stayly
+
+x-app-env: &app-env
+  DATABASE_URL: postgres://${POSTGRES_USER:-stayly}:${POSTGRES_PASSWORD:-stayly}@db:5432/${POSTGRES_DB:-stayly}
+  BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+  UPLOAD_DIR: /data/uploads
+  NODE_ENV: production
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-stayly}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stayly}
+      POSTGRES_DB: ${POSTGRES_DB:-stayly}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # One-shot: migrations + demo seed, before the app starts.
+  migrate:
+    build:
+      context: .
+      target: tools
+    env_file: .env
+    environment: *app-env
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # The full-stack Next.js app: pages + /api route handlers.
+  web:
+    build:
+      context: .
+      target: runner
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    restart: unless-stopped
+    env_file: .env
+    environment: *app-env
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  uploads:

@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/* Design tokens from the "Hotel Booking App" canvas (features-spec §8). */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-canvas: #fafafa;
+  --color-surface: #ffffff;
+  --color-subtle: #f0f0f0;
+  --color-hover: #f5f5f5;
+  --color-line: #e5e5e5;
+  --color-line-soft: #f0f0f0;
+  --color-line-strong: #d4d4d4;
+  --color-faint: #a3a3a3;
+  --color-muted: #525252;
+  --color-body: #404040;
+  --color-ink: #0a0a0a;
+  --color-primary: #171717;
+  --color-primary-hover: #2e2e2e;
+
+  --color-amber-bg: #fef3c7;
+  --color-amber-fg: #92400e;
+  --color-green-bg: #dcfce7;
+  --color-green-fg: #166534;
+  --color-red-bg: #fee2e2;
+  --color-red-fg: #991b1b;
+  --color-grey-bg: #e5e5e5;
+  --color-grey-fg: #262626;
+  --color-orange-bg: #ffedd5;
+  --color-orange-fg: #9a3412;
+
+  --radius-card: 14px;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-canvas text-ink font-sans;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 1px;
+  }
+  /* Make native date/month pickers match the text color. */
+  input[type="date"],
+  input[type="month"],
+  input[type="time"] {
+    color-scheme: light;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}
